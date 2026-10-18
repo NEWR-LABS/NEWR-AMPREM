@@ -2,7 +2,6 @@
   "name": "am-bypass",
   "version": "1.0.0",
   "dependencies": {
-    "firebase-admin": "^11.11.0",
-    "resend": "^3.2.0"
+    "firebase-admin": "^11.11.0"
   }
 }
