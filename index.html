@@ -36,19 +36,20 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
-// ISI DARI FIREBASE CONSOLE (lihat instruksi di bawah)
 const firebaseConfig = {
-  apiKey: "GANTI_API_KEY",
-  authDomain: "GANTI_PROJECT.firebaseapp.com",
-  projectId: "GANTI_PROJECT_ID",
-  appId: "GANTI_APP_ID"
+  apiKey: "AIzaSyAtQgxzTYD7y-AttGJY314sqjRA6QHLNyw",
+  authDomain: "newr-amprem.firebaseapp.com",
+  projectId: "newr-amprem",
+  storageBucket: "newr-amprem.firebasestorage.app",
+  messagingSenderId: "728332958014",
+  appId: "1:728332958014:web:909aecf300fa40c33f146f"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const $ = id => document.getElementById(id);
 const log = m => $('status').textContent = m;
 
-// Kalau user klik link langsung dari email, auto-proses
+// Kalau user klik link langsung dari email di HP yang sama, auto-proses
 if (auth.isSignInWithEmailLink(window.location.href)) {
   const email = localStorage.getItem('emailForSignIn') || prompt('Email yang lu daftarin?');
   finishSignIn(email, window.location.href);
@@ -92,6 +93,7 @@ async function finishSignIn(email, link) {
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
     const result = await auth.currentUser.getIdTokenResult(true);
+    $('step1').classList.add('hidden');
     $('step2').classList.add('hidden');
     $('step3').classList.remove('hidden');
     $('order').textContent = data.orderId;
