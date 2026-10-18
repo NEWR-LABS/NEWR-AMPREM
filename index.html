@@ -1,65 +1,106 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AM Premium - newr.my.id</title>
-    <style>
-        body { font-family: sans-serif; background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { background: #1e293b; padding: 30px; border-radius: 10px; width: 300px; text-align: center; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; }
-        button { background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
-        button:hover { background: #1d4ed8; }
-        .hidden { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AM Premium - newr.my.id</title>
+<style>
+  body { font-family: sans-serif; background:#0f172a; color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+  .box { background:#1e293b; padding:30px; border-radius:10px; width:320px; text-align:center; }
+  input, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; box-sizing:border-box; }
+  button { background:#2563eb; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; width:100%; }
+  .hidden { display:none; }
+  #status { color:#94a3b8; font-size:12px; min-height:16px; }
+</style>
 </head>
 <body>
-    <div class="box">
-        <h2>AM Generator</h2>
-        <div id="step1">
-            <input type="email" id="email" placeholder="Email Alight Motion">
-            <button onclick="sendLink()">Kirim Magic Link</button>
-        </div>
-        <div id="step2" class="hidden">
-            <p>Cek email lu, copy link verifikasinya, paste di sini:</p>
-            <textarea id="magicLink" rows="4" style="width:100%; padding:10px; border-radius:5px;"></textarea>
-            <button onclick="activate()">Aktivasi Premium</button>
-        </div>
-        <div id="step3" class="hidden">
-            <h3>🎉 Sukses!</h3>
-            <p>Akun lu udah Premium. Buka app Alight Motion, logout, terus login lagi pakai email tadi.</p>
-        </div>
-    </div>
+<div class="box">
+  <h2>AM Generator</h2>
+  <div id="step1">
+    <input type="email" id="email" placeholder="Email Alight Motion">
+    <button onclick="sendLink()">Kirim Magic Link</button>
+  </div>
+  <div id="step2" class="hidden">
+    <p style="font-size:13px">Link terkirim. Buka dari email di HP ini, atau copy linknya dan paste:</p>
+    <textarea id="magicLink" rows="3"></textarea>
+    <button onclick="pasteFlow()">Aktivasi</button>
+  </div>
+  <div id="step3" class="hidden">
+    <h3>PREMIUM AKTIF</h3>
+    <p>Kode Order: <b id="order"></b></p>
+    <p id="claim"></p>
+  </div>
+  <p id="status"></p>
+</div>
 
-    <script>
-        async function sendLink() {
-            const email = document.getElementById('email').value;
-            const res = await fetch('/api/send', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email})
-            });
-            const data = await res.json();
-            if(data.success) {
-                document.getElementById('step1').classList.add('hidden');
-                document.getElementById('step2').classList.remove('hidden');
-                alert('Link terkirim! Cek inbox/spam.');
-            } else { alert('Gagal: ' + data.error); }
-        }
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+// ISI DARI FIREBASE CONSOLE (lihat instruksi di bawah)
+const firebaseConfig = {
+  apiKey: "GANTI_API_KEY",
+  authDomain: "GANTI_PROJECT.firebaseapp.com",
+  projectId: "GANTI_PROJECT_ID",
+  appId: "GANTI_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const $ = id => document.getElementById(id);
+const log = m => $('status').textContent = m;
 
-        async function activate() {
-            const link = document.getElementById('magicLink').value;
-            const res = await fetch('/api/activate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({link})
-            });
-            const data = await res.json();
-            if(data.success) {
-                document.getElementById('step2').classList.add('hidden');
-                document.getElementById('step3').classList.remove('hidden');
-            } else { alert('Gagal: ' + data.error); }
-        }
-    </script>
+// Kalau user klik link langsung dari email, auto-proses
+if (auth.isSignInWithEmailLink(window.location.href)) {
+  const email = localStorage.getItem('emailForSignIn') || prompt('Email yang lu daftarin?');
+  finishSignIn(email, window.location.href);
+}
+
+async function sendLink() {
+  const email = $('email').value.trim();
+  if (!email) return log('Isi email dulu.');
+  log('Mengirim link dari server Firebase...');
+  try {
+    await auth.sendSignInLinkToEmail(email, {
+      url: 'https://newr.my.id/',
+      handleCodeInApp: true
+    });
+    localStorage.setItem('emailForSignIn', email);
+    $('step1').classList.add('hidden');
+    $('step2').classList.remove('hidden');
+    log('Terkirim. Cek inbox + folder spam/promosi.');
+  } catch (e) {
+    log('GAGAL: ' + e.message);
+  }
+}
+
+async function pasteFlow() {
+  const email = localStorage.getItem('emailForSignIn') || $('email').value.trim();
+  const link = $('magicLink').value.trim();
+  if (!auth.isSignInWithEmailLink(link)) return log('Link tidak valid.');
+  finishSignIn(email, link);
+}
+
+async function finishSignIn(email, link) {
+  log('Verifikasi link + inject claims...');
+  try {
+    await auth.signInWithEmailLink(email, link);
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch('/api/activate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    const result = await auth.currentUser.getIdTokenResult(true);
+    $('step2').classList.add('hidden');
+    $('step3').classList.remove('hidden');
+    $('order').textContent = data.orderId;
+    $('claim').textContent = 'Status claims premium: ' + (result.claims.premium === true);
+    log('');
+  } catch (e) {
+    log('GAGAL: ' + e.message);
+  }
+}
+</script>
 </body>
 </html>
