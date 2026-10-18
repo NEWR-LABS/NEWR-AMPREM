@@ -10,7 +10,7 @@
   input, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; box-sizing:border-box; }
   button { background:#2563eb; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; width:100%; }
   .hidden { display:none; }
-  #status { color:#94a3b8; font-size:12px; min-height:16px; }
+  #status { color:#94a3b8; font-size:12px; min-height:32px; white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -21,87 +21,59 @@
     <button onclick="sendLink()">Kirim Magic Link</button>
   </div>
   <div id="step2" class="hidden">
-    <p style="font-size:13px">Link terkirim. Buka dari email di HP ini, atau copy linknya dan paste:</p>
-    <textarea id="magicLink" rows="3"></textarea>
-    <button onclick="pasteFlow()">Aktivasi</button>
+    <p style="font-size:13px">Paste SELURUH link dari email (boleh ada enter/spasi, aman):</p>
+    <textarea id="magicLink" rows="4"></textarea>
+    <button onclick="activate()">Aktivasi</button>
   </div>
   <div id="step3" class="hidden">
-    <h3>PREMIUM AKTIF</h3>
+    <h3>PREMIUM INJECTED</h3>
     <p>Kode Order: <b id="order"></b></p>
-    <p id="claim"></p>
+    <p style="font-size:12px">Buka app Alight Motion, login pakai email ini (sign in with email link), premium udah nempel.</p>
   </div>
   <p id="status"></p>
 </div>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAtQgxzTYD7y-AttGJY314sqjRA6QHLNyw",
-  authDomain: "newr-amprem.firebaseapp.com",
-  projectId: "newr-amprem",
-  storageBucket: "newr-amprem.firebasestorage.app",
-  messagingSenderId: "728332958014",
-  appId: "1:728332958014:web:909aecf300fa40c33f146f"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
 const $ = id => document.getElementById(id);
 const log = m => $('status').textContent = m;
-
-// Kalau user klik link langsung dari email di HP yang sama, auto-proses
-if (auth.isSignInWithEmailLink(window.location.href)) {
-  const email = localStorage.getItem('emailForSignIn') || prompt('Email yang lu daftarin?');
-  finishSignIn(email, window.location.href);
-}
+let EMAIL = '';
 
 async function sendLink() {
-  const email = $('email').value.trim();
-  if (!email) return log('Isi email dulu.');
-  log('Mengirim link dari server Firebase...');
+  EMAIL = $('email').value.trim();
+  if (!EMAIL) return log('Isi email dulu.');
+  log('Minta link ke server Alight Motion...');
   try {
-    await auth.sendSignInLinkToEmail(email, {
-      url: 'https://newr.my.id/',
-      handleCodeInApp: true
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: EMAIL })
     });
-    localStorage.setItem('emailForSignIn', email);
+    const data = await res.json();
+    if (!data.success) throw new Error(JSON.stringify(data.error));
+    localStorage.setItem('am_email', EMAIL);
     $('step1').classList.add('hidden');
     $('step2').classList.remove('hidden');
-    log('Terkirim. Cek inbox + folder spam/promosi.');
-  } catch (e) {
-    log('GAGAL: ' + e.message);
-  }
+    log('Terkirim. Cek inbox/spam.');
+  } catch (e) { log('GAGAL: ' + e.message); }
 }
 
-async function pasteFlow() {
-  const email = localStorage.getItem('emailForSignIn') || $('email').value.trim();
-  const link = $('magicLink').value.trim();
-  if (!auth.isSignInWithEmailLink(link)) return log('Link tidak valid.');
-  finishSignIn(email, link);
-}
-
-async function finishSignIn(email, link) {
-  log('Verifikasi link + inject claims...');
+async function activate() {
+  const email = EMAIL || localStorage.getItem('am_email') || $('email').value.trim();
+  const link = $('magicLink').value;
+  if (!link.trim()) return log('Paste link dulu.');
+  log('Menembus server verifyPurchase Alight...');
   try {
-    await auth.signInWithEmailLink(email, link);
-    const token = await auth.currentUser.getIdToken();
     const res = await fetch('/api/activate', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ token })
+      body: JSON.stringify({ email: email, magicLink: link })
     });
     const data = await res.json();
-    if (!data.success) throw new Error(data.error);
-    const result = await auth.currentUser.getIdTokenResult(true);
-    $('step1').classList.add('hidden');
+    if (!data.success) throw new Error(JSON.stringify(data.error));
     $('step2').classList.add('hidden');
     $('step3').classList.remove('hidden');
-    $('order').textContent = data.orderId;
-    $('claim').textContent = 'Status claims premium: ' + (result.claims.premium === true);
+    $('order').textContent = data.orderId || '-';
     log('');
-  } catch (e) {
-    log('GAGAL: ' + e.message);
-  }
+  } catch (e) { log('GAGAL: ' + e.message); }
 }
 </script>
 </body>
